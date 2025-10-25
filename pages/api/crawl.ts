@@ -15,15 +15,52 @@ function isHttpUrl(u: string): boolean {
   }
 }
 
-async function fetchWithTimeout(url: string, ms = 10000): Promise<Response> {
+type HeaderProfile = "chrome" | "wechat";
+
+function buildHeaders(
+  profile: HeaderProfile,
+  referer?: string
+): Record<string, string> {
+  // A realistic browser-like header set can help with strict sites.
+  // We keep it minimal to avoid spoofing too much.
+  const base: Record<string, string> = {
+    Accept:
+      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    // Next/Node handles Accept-Encoding automatically; setting it manually can cause issues.
+    // 'Accept-Encoding': 'gzip, deflate, br',
+    // Provide a common desktop Chrome UA by default
+    "User-Agent":
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0 Safari/537.36",
+  };
+
+  if (profile === "wechat") {
+    // A UA resembling WeChat in-app browser can improve success rate on mp.weixin.qq.com
+    base["User-Agent"] =
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.40(0x1800282c) NetType/WIFI Language/zh_CN";
+  }
+
+  if (referer && isHttpUrl(referer)) {
+    base["Referer"] = referer;
+  }
+
+  return base;
+}
+
+async function fetchWithTimeout(
+  url: string,
+  ms = 10000,
+  headers?: Record<string, string>
+): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), ms);
   try {
     const res = await fetch(url, {
-      // Identify ourselves politely
-      headers: {
-        "user-agent": "web-link-crawler-demo/0.1 (+https://example.com)",
-      },
+      method: "GET",
+      redirect: "follow",
+      headers,
       signal: controller.signal,
     });
     return res;
@@ -43,6 +80,13 @@ export default async function handler(
 
   const urlParam = req.query.url;
   const url = Array.isArray(urlParam) ? urlParam[0] : urlParam;
+  const profileParam = req.query.profile;
+  const profile: HeaderProfile =
+    profileParam === "wechat" || profileParam === "chrome"
+      ? (profileParam as HeaderProfile)
+      : "chrome";
+  const refererParam = req.query.referer;
+  const referer = Array.isArray(refererParam) ? refererParam[0] : refererParam;
 
   if (!url || typeof url !== "string") {
     return res.status(400).json({ error: "Missing `url` query parameter" });
@@ -55,11 +99,22 @@ export default async function handler(
   }
 
   try {
-    const r = await fetchWithTimeout(url, 12000);
+    const headers = buildHeaders(
+      profile,
+      typeof referer === "string" ? referer : undefined
+    );
+    const r = await fetchWithTimeout(url, 15000, headers);
     if (!r.ok) {
-      return res
-        .status(r.status)
-        .json({ error: `Upstream responded with status ${r.status}` });
+      let bodySnippet = "";
+      try {
+        const txt = await r.text();
+        bodySnippet = txt.slice(0, 400);
+      } catch {}
+      return res.status(r.status).json({
+        error: `Upstream responded with status ${r.status}. ${
+          bodySnippet ? "Snippet: " + bodySnippet : ""
+        }`.trim(),
+      });
     }
 
     const contentType = r.headers.get("content-type") || "";
@@ -79,6 +134,8 @@ export default async function handler(
       const rawHref = $(el).attr("href")?.trim();
       if (!rawHref) return;
       try {
+        // Skip non-http(s) links
+        if (/^(javascript:|data:|mailto:|tel:)/i.test(rawHref)) return;
         const absolute = new URL(rawHref, baseUrl).toString();
         if (unique.has(absolute)) return;
         unique.add(absolute);

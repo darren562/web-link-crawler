@@ -29,3 +29,5 @@ Notes:
 
 - Crawling runs on the server to avoid browser CORS restrictions.
 - Some sites may block crawling or return non-HTML content. If a request fails, try another public webpage.
+
+### serverless pay
