@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Then open: http://localhost:3000/demo
+Then open: http://localhost:3000/
 
 Production build and start:
 
@@ -22,7 +22,7 @@ npm start
 
 ## Features
 
-- Page: `/demo` — Enter a URL, the server fetches the page and parses all hyperlinks.
+- Page: `/` (homepage) — Enter a URL, the server fetches the page and parses all hyperlinks.
 - API: `/api/crawl` — GET only, use the `url` query parameter to specify the page to crawl.
 
 Notes:

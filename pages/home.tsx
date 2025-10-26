@@ -5,7 +5,7 @@ interface LinkItem {
   text: string;
 }
 
-export default function DemoPage() {
+export default function HomePage() {
   const [url, setUrl] = useState("https://example.com");
   const [links, setLinks] = useState<LinkItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -20,11 +20,11 @@ export default function DemoPage() {
       const res = await fetch(`/api/crawl?url=${encodeURIComponent(url)}`);
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error || "请求失败");
+        throw new Error(data?.error || "Request failed");
       }
       setLinks(data.links || []);
     } catch (err: any) {
-      setError(err?.message || "未知错误");
+      setError(err?.message || "Unknown error");
     } finally {
       setLoading(false);
     }
@@ -39,10 +39,10 @@ export default function DemoPage() {
         lineHeight: 1.5,
       }}
     >
-      <h1>Web Link Crawler Demo</h1>
+      <h1>Web Link Crawler</h1>
       <p>
-        输入一个 URL，我们将解析页面中的所有链接（服务端进行抓取以避免 CORS
-        问题）。
+        Enter a URL and we will parse all links on that page (server-side fetch
+        to avoid CORS issues).
       </p>
 
       <form
@@ -73,19 +73,21 @@ export default function DemoPage() {
             color: "#fff",
           }}
         >
-          {loading ? "抓取中…" : "抓取链接"}
+          {loading ? "Fetching…" : "Fetch Links"}
         </button>
       </form>
 
       {error && (
-        <div style={{ marginTop: "1rem", color: "#b00020" }}>错误：{error}</div>
+        <div style={{ marginTop: "1rem", color: "#b00020" }}>
+          Error: {error}
+        </div>
       )}
 
       {links && (
         <div style={{ marginTop: "1.5rem" }}>
-          <h2>发现 {links.length} 个链接</h2>
+          <h2>Found {links.length} links</h2>
           {links.length === 0 ? (
-            <p>未找到链接。</p>
+            <p>No links found.</p>
           ) : (
             <ul style={{ marginTop: "0.5rem" }}>
               {links.map((l, idx) => (
@@ -102,7 +104,8 @@ export default function DemoPage() {
 
       <div style={{ marginTop: "2rem", fontSize: 12, color: "#666" }}>
         <p>
-          提示：某些站点可能拒绝抓取或者阻止请求；如遇失败请尝试其它公开网页。
+          Note: Some sites may block crawling or large responses; if it fails,
+          try another public page.
         </p>
       </div>
     </div>
