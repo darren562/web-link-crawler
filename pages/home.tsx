@@ -33,22 +33,37 @@ export default function HomePage() {
   return (
     <div
       style={{
-        fontFamily:
-          "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
-        padding: "2rem",
-        lineHeight: 1.5,
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "flex-start",
+        padding: "2rem 1rem",
+        background: "#fafafa",
       }}
     >
-      <h1>Web Link Crawler</h1>
-      <p>
-        Enter a URL and we will parse all links on that page (server-side fetch
-        to avoid CORS issues).
-      </p>
-
-      <form
-        onSubmit={onSubmit}
-        style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}
+      <div
+        style={{
+          fontFamily:
+            "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+          padding: "2rem",
+          lineHeight: 1.5,
+          width: "100%",
+          maxWidth: 760,
+          background: "#fff",
+          borderRadius: 8,
+          boxShadow: "0 6px 18px rgba(15,15,15,0.06)",
+        }}
       >
+        <h1>Web Link Crawler</h1>
+        <p>
+          Enter a URL and we will parse all links on that page (server-side fetch
+          to avoid CORS issues).
+        </p>
+
+        <form
+          onSubmit={onSubmit}
+          style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}
+        >
         <input
           type="url"
           required
@@ -75,7 +90,7 @@ export default function HomePage() {
         >
           {loading ? "Fetching…" : "Fetch Links"}
         </button>
-      </form>
+        </form>
 
       {error && (
         <div style={{ marginTop: "1rem", color: "#b00020" }}>
@@ -102,11 +117,12 @@ export default function HomePage() {
         </div>
       )}
 
-      <div style={{ marginTop: "2rem", fontSize: 12, color: "#666" }}>
-        <p>
-          Note: Some sites may block crawling or large responses; if it fails,
-          try another public page.
-        </p>
+        <div style={{ marginTop: "2rem", fontSize: 12, color: "#666" }}>
+          <p>
+            Note: Some sites may block crawling or large responses; if it fails,
+            try another public page.
+          </p>
+        </div>
       </div>
     </div>
   );
