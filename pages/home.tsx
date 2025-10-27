@@ -6,27 +6,74 @@ interface LinkItem {
 }
 
 export default function HomePage() {
-  const [url, setUrl] = useState("https://example.com");
+  const [urls, setUrls] = useState<string[]>([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
   const [links, setLinks] = useState<LinkItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
 
   const onSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
     setError(null);
     setLinks(null);
     setLoading(true);
+    setProgress(null);
     try {
-      const res = await fetch(`/api/crawl?url=${encodeURIComponent(url)}`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error || "Request failed");
+      const inputUrls = urls.map((u) => u.trim()).filter((u) => u.length > 0);
+
+      if (inputUrls.length === 0) {
+        throw new Error("请至少输入一个链接");
       }
-      setLinks(data.links || []);
+
+      const unique = new Set<string>();
+      const merged: LinkItem[] = [];
+      const total = inputUrls.length;
+
+      for (let i = 0; i < inputUrls.length; i++) {
+        const u = inputUrls[i];
+        setProgress({ current: i + 1, total });
+        try {
+          const res = await fetch(`/api/crawl?url=${encodeURIComponent(u)}`);
+          const data = await res.json();
+          if (!res.ok) {
+            // if one fails, continue others
+            // collect message subtly
+            console.warn("crawl failed:", u, data?.error);
+            continue;
+          }
+          const list: LinkItem[] = Array.isArray(data.links) ? data.links : [];
+          for (const item of list) {
+            if (!unique.has(item.href)) {
+              unique.add(item.href);
+              merged.push(item);
+            }
+          }
+        } catch (err) {
+          console.warn("crawl error:", u, err);
+          continue;
+        }
+      }
+
+      setLinks(merged);
     } catch (err: any) {
       setError(err?.message || "Unknown error");
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   };
 
@@ -56,40 +103,72 @@ export default function HomePage() {
       >
         <h1>Web Link Crawler</h1>
         <p>
-          Enter a URL and we will parse all links on that page (server-side
-          fetch to avoid CORS issues).
+          输入最多 10 个链接，服务端将分别抓取每个页面中的所有链接并合并输出。
         </p>
 
-        <form
-          onSubmit={onSubmit}
-          style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}
-        >
-          <input
-            type="url"
-            required
-            placeholder="https://example.com"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
+        <form onSubmit={onSubmit} style={{ marginTop: "1rem" }}>
+          <div
             style={{
-              flex: 1,
-              padding: "0.5rem 0.75rem",
-              border: "1px solid #ccc",
-              borderRadius: 6,
-            }}
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              padding: "0.5rem 0.9rem",
-              borderRadius: 6,
-              border: "1px solid #666",
-              background: "#111",
-              color: "#fff",
+              display: "grid",
+              gridTemplateColumns: "1fr",
+              gap: "0.5rem",
             }}
           >
-            {loading ? "Fetching…" : "Fetch Links"}
-          </button>
+            {urls.map((val, idx) => (
+              <input
+                key={idx}
+                type="url"
+                placeholder={`URL ${idx + 1}`}
+                value={val}
+                onChange={(e) => {
+                  const next = [...urls];
+                  next[idx] = e.target.value;
+                  setUrls(next);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "0.5rem 0.75rem",
+                  border: "1px solid #ccc",
+                  borderRadius: 6,
+                }}
+              />
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                padding: "0.5rem 0.9rem",
+                borderRadius: 6,
+                border: "1px solid #666",
+                background: "#111",
+                color: "#fff",
+              }}
+            >
+              {loading && progress
+                ? `Fetching ${progress.current}/${progress.total}…`
+                : "Fetch & Merge Links"}
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                setUrls(["", "", "", "", "", "", "", "", "", ""]);
+                setLinks(null);
+                setError(null);
+              }}
+              style={{
+                padding: "0.5rem 0.9rem",
+                borderRadius: 6,
+                border: "1px solid #bbb",
+                background: "#f5f5f5",
+                color: "#333",
+              }}
+            >
+              Clear
+            </button>
+          </div>
         </form>
 
         {error && (
@@ -100,7 +179,7 @@ export default function HomePage() {
 
         {links && (
           <div style={{ marginTop: "1.5rem" }}>
-            <h2>Found {links.length} links</h2>
+            <h2>Found {links.length} merged links</h2>
             {links.length === 0 ? (
               <p>No links found.</p>
             ) : (
